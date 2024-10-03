@@ -281,10 +281,6 @@ def main():
         uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
-            # Display the original uploaded video
-            st.subheader("Original Video")
-            st.video(uploaded_file)
-
             video_duration = get_video_duration(uploaded_file)
             start_sec = st.slider("Start Time (seconds)", 0, max(0, video_duration - 1), 0)
             
@@ -294,9 +290,7 @@ def main():
             if st.button('Process Video'):
                 # Reset file pointer to the beginning
                 uploaded_file.seek(0)
-                with st.spinner('Processing video...'):
-                    output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-                st.subheader("Processed Video")
+                output_video = predict_fn(uploaded_file.read(), start_sec, duration)
                 st.video(output_video)
         else:
             st.write("Please upload a video to begin.")

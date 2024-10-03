@@ -1,3 +1,8 @@
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+from torch.hub import download_url_to_file
+
 import gc
 import math
 import streamlit as st
@@ -15,39 +20,94 @@ from moviepy.editor import VideoFileClip
 # Determine the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+class ConvNormLReLU(nn.Sequential):
+    def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, padding=1, pad_mode="reflect", groups=1, bias=False):
+        pad_layer = {
+            "zero":    nn.ZeroPad2d,
+            "same":    nn.ReplicationPad2d,
+            "reflect": nn.ReflectionPad2d,
+        }
+        super(ConvNormLReLU, self).__init__(
+            pad_layer[pad_mode](padding),
+            nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding=0, groups=groups, bias=bias),
+            nn.GroupNorm(num_groups=1, num_channels=out_ch, affine=True),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+
+class InvertedResBlock(nn.Module):
+    def __init__(self, in_ch, out_ch, expansion_ratio=2):
+        super(InvertedResBlock, self).__init__()
+        self.use_res_connect = in_ch == out_ch
+        bottleneck = int(round(in_ch*expansion_ratio))
+        layers = []
+        if expansion_ratio != 1:
+            layers.append(ConvNormLReLU(in_ch, bottleneck, kernel_size=1, padding=0))
+        layers.extend([
+            ConvNormLReLU(bottleneck, bottleneck, groups=bottleneck, padding=1),
+            nn.Conv2d(bottleneck, out_ch, kernel_size=1, padding=0, bias=False),
+            nn.GroupNorm(num_groups=1, num_channels=out_ch, affine=True),
+        ])
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        if self.use_res_connect:
+            return x + self.layers(x)
+        else:
+            return self.layers(x)
+
+class Generator(nn.Module):
+    def __init__(self, ):
+        super().__init__()
+        self.block_a = nn.Sequential(
+            ConvNormLReLU(3,  32, kernel_size=7, padding=3),
+            ConvNormLReLU(32, 64, kernel_size=3, stride=2, padding=1),
+            ConvNormLReLU(64, 64)
+        )
+        self.block_b = nn.Sequential(
+            ConvNormLReLU(64,  128, kernel_size=3, stride=2, padding=1),
+            ConvNormLReLU(128, 128)
+        )
+        self.block_c = nn.Sequential(
+            ConvNormLReLU(128, 128),
+            InvertedResBlock(128, 256, 2),
+            InvertedResBlock(256, 256, 2),
+            InvertedResBlock(256, 256, 2),
+            InvertedResBlock(256, 256, 2),
+            ConvNormLReLU(256, 128),
+        )
+        self.block_d = nn.Sequential(
+            ConvNormLReLU(128, 128),
+            ConvNormLReLU(128, 128)
+        )
+        self.block_e = nn.Sequential(
+            ConvNormLReLU(128, 64),
+            ConvNormLReLU(64,  64),
+            ConvNormLReLU(64,  32, kernel_size=7, padding=3)
+        )
+        self.out_layer = nn.Sequential(
+            nn.Conv2d(32, 3, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        x = self.block_a(x)
+        x = self.block_b(x)
+        x = self.block_c(x)
+        x = self.block_d(nn.functional.interpolate(x, scale_factor=2))
+        x = self.block_e(nn.functional.interpolate(x, scale_factor=2))
+        x = self.out_layer(x)
+        return x
+    
 @st.cache_resource
 def load_model():
     print(f"🧠 Loading Model on {device}...")
     model = torch.hub.load(
-        "AK391/animegan2-pytorch:main",
+        "bryandlee/animegan2-pytorch:main",
         "generator",
         pretrained=True,
         progress=True,
     )
     return model.to(device)
-
-model = load_model()
-
-
-import gc
-import math
-import streamlit as st
-import gradio as gr
-import numpy as np
-import torch
-from encoded_video import EncodedVideo, write_video
-from torchvision.transforms.functional import center_crop, to_tensor
-
-@st.cache_resource
-def load_model():
-    print("🧠 Loading Model...")
-    return torch.hub.load(
-        "AK391/animegan2-pytorch:main",
-        "generator",
-        pretrained=True,
-        device="cuda" if torch.cuda.is_available() else "cpu",
-        progress=True,
-    )
 
 model = load_model()
 
@@ -78,13 +138,13 @@ def inference_step(vid, start_sec, duration, out_fps):
 
     x = uniform_temporal_subsample(video_arr, duration * out_fps)
     x = center_crop(short_side_scale(x, 512), 512)
-    x /= 255.0
+    x = x / 127.5 - 1.0  # Normalize to [-1, 1]
     x = x.permute(1, 0, 2, 3)
     with torch.no_grad():
         x = x.to(device)
         output = model(x).detach().cpu()
         output = (output * 0.5 + 0.5).clip(0, 1) * 255.0
-        output_video = output.permute(0, 2, 3, 1).numpy()
+        output_video = output.permute(0, 2, 3, 1).numpy().astype(np.uint8)
 
     return output_video, audio_arr, out_fps, audio_fps
 
@@ -281,10 +341,6 @@ def main():
         uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
-            # Display the original uploaded video
-            st.subheader("Original Video")
-            st.video(uploaded_file)
-
             video_duration = get_video_duration(uploaded_file)
             start_sec = st.slider("Start Time (seconds)", 0, max(0, video_duration - 1), 0)
             
@@ -294,9 +350,7 @@ def main():
             if st.button('Process Video'):
                 # Reset file pointer to the beginning
                 uploaded_file.seek(0)
-                with st.spinner('Processing video...'):
-                    output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-                st.subheader("Processed Video")
+                output_video = predict_fn(uploaded_file.read(), start_sec, duration)
                 st.video(output_video)
         else:
             st.write("Please upload a video to begin.")
