@@ -1,5 +1,5 @@
 [ui]
-hideTopBar = false
+hideTopBar = true
 
 [theme]
 base = "light" 
@@ -16,7 +16,7 @@ messageFormat = "%(asctime)s %(message)s"
 
 [client]
 showErrorDetails = false
-
+toolbarMode = "minimal"
 
 [server]
 maxUploadSize = 15
