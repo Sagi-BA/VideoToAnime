@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Gaya",
+    "original": "examples/Gaya.mp4",
+    "anime": "examples/Gaya_anime.mp4",
+    "description": "This example showcases the transformation of the Gaya video to anime style. Notice how the AnimeGANV2 algorithm changes the textures and colors to give it an anime-like appearance while preserving the overall structure and movement of the original video."
+  },
+  {
+    "name": "Gaya 2",
+    "original": "examples/gaya2.mp4",
+    "anime": "examples/Gaya2_anime.mp4",
+    "description": "This example showcases the transformation of the Gaya video to anime style. Notice how the AnimeGANV2 algorithm changes the textures and colors to give it an anime-like appearance while preserving the overall structure and movement of the original video."
+  },
+  {
+    "name": "Family",
+    "original": "examples/family.mp4",
+    "anime": "examples/family_anime.mp4",
+    "description": "This example showcases the transformation of the Gaya video to anime style. Notice how the AnimeGANV2 algorithm changes the textures and colors to give it an anime-like appearance while preserving the overall structure and movement of the original video."
+  }
+]
