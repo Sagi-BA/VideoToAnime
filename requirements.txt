@@ -1,33 +1,38 @@
-python-dotenv
-streamlit
-pandas 
-openpyxl
-beautifulsoup4
-tenacity
-selenium
-webdriver-manager
-# groq
-requests
-PyPDF2
-docx2txt
-langdetect
-
-# torch>=1.9.0
-# torchvision>=0.10.0
-# Pillow>=8.3.1
-# numpy>=1.21.0
-# opencv-python>=4.5.3
-
-gradio
 torch
 torchvision
-Pillow
-gdown
+streamlit
+gradio
 numpy
-scipy
-cmake
-onnxruntime-gpu
-opencv-python-headless
 encoded-video
 moviepy
+Pillow
 av
+
+# python-dotenv
+# streamlit
+# pandas 
+# openpyxl
+# beautifulsoup4
+# tenacity
+# selenium
+# webdriver-manager
+# # groq
+# requests
+# PyPDF2
+# docx2txt
+# langdetect
+
+
+# gradio
+# torch
+# torchvision
+# Pillow
+# gdown
+# numpy
+# scipy
+# cmake
+# onnxruntime-gpu
+# opencv-python-headless
+# encoded-video
+# moviepy
+# av
