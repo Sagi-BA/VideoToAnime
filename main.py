@@ -12,18 +12,26 @@ import tempfile
 import uuid
 from moviepy.editor import VideoFileClip
 
+import io
+import contextlib
+
 # Determine the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 @st.cache_resource
 def load_model():
-    print(f"🧠 Loading Model on {device}...")
-    model = torch.hub.load(
-        "AK391/animegan2-pytorch:main",
-        "generator",
-        pretrained=True,
-        progress=True,
-    )
+    print("🧠 Loading Model...")
+    # Temporarily redirect stdout and stderr
+    temp_stdout = io.StringIO()
+    temp_stderr = io.StringIO()
+    with contextlib.redirect_stdout(temp_stdout), contextlib.redirect_stderr(temp_stderr):
+        model = torch.hub.load(
+            "AK391/animegan2-pytorch:main",
+            "generator",
+            pretrained=True,
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            progress=True,
+        )
     return model.to(device)
 
 model = load_model()
