@@ -1,3 +1,6 @@
+aiohttp #This is for telegram
+python-dotenv #for .env
+
 torch
 torchvision
 streamlit
@@ -8,31 +11,3 @@ moviepy
 Pillow
 av
 
-# python-dotenv
-# streamlit
-# pandas 
-# openpyxl
-# beautifulsoup4
-# tenacity
-# selenium
-# webdriver-manager
-# # groq
-# requests
-# PyPDF2
-# docx2txt
-# langdetect
-
-
-# gradio
-# torch
-# torchvision
-# Pillow
-# gdown
-# numpy
-# scipy
-# cmake
-# onnxruntime-gpu
-# opencv-python-headless
-# encoded-video
-# moviepy
-# av

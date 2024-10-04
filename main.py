@@ -1,7 +1,6 @@
 import gc
 import math
 import streamlit as st
-import gradio as gr
 import numpy as np
 import torch
 from encoded_video import EncodedVideo, write_video
@@ -11,31 +10,29 @@ import os
 import tempfile
 import uuid
 from moviepy.editor import VideoFileClip
+import warnings
 
-import io
-import contextlib
+# Suppress warnings
+warnings.filterwarnings("ignore", category=SyntaxWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Determine the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 @st.cache_resource
 def load_model():
-    print("🧠 Loading Model...")
-    # Temporarily redirect stdout and stderr
-    temp_stdout = io.StringIO()
-    temp_stderr = io.StringIO()
-    with contextlib.redirect_stdout(temp_stdout), contextlib.redirect_stderr(temp_stderr):
+    with st.spinner("Loading AI model... This might take a minute."):
         model = torch.hub.load(
             "AK391/animegan2-pytorch:main",
             "generator",
             pretrained=True,
-            device="cuda" if torch.cuda.is_available() else "cpu",
+            device=device,
             progress=True,
         )
     return model.to(device)
 
-model = load_model()
-
+# Don't load the model immediately
+model = None
 
 import gc
 import math
@@ -289,25 +286,27 @@ def main():
         uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
-            # Display the original uploaded video
-            st.subheader("Original Video")
-            st.video(uploaded_file)
+            try:
+                # Display the original uploaded video
+                st.subheader("Original Video")
+                st.video(uploaded_file)
 
-            video_duration = get_video_duration(uploaded_file)
-            start_sec = st.slider("Start Time (seconds)", 0, max(0, video_duration - 1), 0)
-            
-            remaining_duration = video_duration - start_sec
-            duration = st.slider("Duration (seconds)", 1, remaining_duration, min(remaining_duration, 10))
-            
-            if st.button('Process Video'):
-                # Reset file pointer to the beginning
-                uploaded_file.seek(0)
-                with st.spinner('Processing video...'):
-                    output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-                st.subheader("Processed Video")
-                st.video(output_video)
-        else:
-            st.write("Please upload a video to begin.")
+                video_duration = get_video_duration(uploaded_file)
+                start_sec = st.slider("Start Time (seconds)", 0, max(0, video_duration - 1), 0)
+                
+                remaining_duration = video_duration - start_sec
+                duration = st.slider("Duration (seconds)", 1, min(remaining_duration, 30), min(remaining_duration, 10))
+                
+                if st.button('Process Video'):
+                    # Reset file pointer to the beginning
+                    uploaded_file.seek(0)
+                    with st.spinner('Processing video... This may take a while depending on the video length.'):
+                        output_video = predict_fn(uploaded_file.read(), start_sec, duration)
+                    st.subheader("Processed Video")
+                    st.video(output_video)
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.error("Please try uploading a different video or check the file format.")
     
     with tab2:
         show_examples()
