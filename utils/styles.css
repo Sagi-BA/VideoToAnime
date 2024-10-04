@@ -205,7 +205,14 @@ img {
   font-size: 14px;
   color: #666;
 }
-
+.stVideo {
+  width: 50% !important;
+  height: 50% !important;
+}
+.stVideo > video {
+  width: 100% !important;
+  height: 100% !important;
+}
 /* Footer styling */
 .footer {
   position: fixed;

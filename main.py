@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Set page config for better mobile responsiveness
-st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="המרה של וידאו לאנימציה", page_icon="🎬")
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="המרה של וידאו לאנימציה", page_icon="🎥")
 
 # Initialize session state
 if 'state' not in st.session_state:
@@ -203,9 +203,9 @@ def predict_fn(video, start_sec, duration):
 def show_examples():
     st.header("🎬 דוגמאות להמרות")
     
-    # Load and display the custom expander HTML
-    expander_html = load_html_file('examples.html')
-    st.html(expander_html)  
+    # Load and display the custom examples HTML
+    examples_html = load_html_file('examples.html')
+    st.html(examples_html)  
     
     if st.button(f"💖 אהבתי", key=f"like", use_container_width=True):
         st.balloons()
@@ -228,7 +228,7 @@ async def main():
         uploaded_file = st.file_uploader("העלו קובץ וידאו", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
-            try:
+            try:                
                 # Display the original uploaded video
                 st.subheader("וידאו מקורי")
                 st.video(uploaded_file)
