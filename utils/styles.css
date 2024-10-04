@@ -1,0 +1,261 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap");
+
+:root {
+  --main-bg-color: #ffffff;
+  --secondary-bg-color: #dccdd4;
+  --text-color: #000000;
+  --accent-color: #4bb3fd;
+  --glow-color: #4bb3fd;
+}
+
+/* Streamlit-specific styles */
+.stApp {
+  background-color: var(--main-bg-color);
+}
+
+body {
+  font-family: "Exo 2", sans-serif;
+  direction: rtl;
+}
+
+h1 {
+  font-size: 56px; /* Restore the original large size for the title */
+  color: var(--text-color); /* Keep the original accent color */
+  text-shadow: 0 0 10px var(--glow-color); /* Keep the glow effect */
+  text-align: center; /* Ensure it's centered on all screen sizes */
+  margin-top: 20px; /* Add a bit of space from the top */
+}
+
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Orbitron", sans-serif;
+  color: var(--accent-color);
+  text-shadow: 0 0 10px var(--glow-color);
+}
+
+p {
+  font-size: 20px !important;
+}
+
+@media (max-width: 1200px) {
+  h1 {
+    font-size: 2.5rem;
+  }
+
+  p {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  p {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  p {
+    font-size: 14px;
+  }
+}
+
+/* Buttons */
+.stButton > button {
+  color: white;
+  background-color: #4caf50;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.stButton > button:hover {
+  background-color: #45a049;
+}
+
+/* Responsive button sizing */
+@media (max-width: 768px) {
+  .stButton > button {
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stButton > button {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+}
+
+/* Responsive image container */
+.image-wrapper img {
+  width: 100%;
+  height: auto;
+  max-width: 600px;
+}
+
+@media (max-width: 768px) {
+  .image-wrapper img {
+    max-width: 100%;
+  }
+}
+
+/* Ensure video and images fit smaller screens */
+video,
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* Centered link styles */
+.centered-link {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 16px;
+  width: 100%;
+  text-align: center;
+}
+.upload-container {
+  border: 2px dashed #ccc;
+  border-radius: 5px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.upload-icon {
+  font-size: 48px;
+  color: #1e90ff;
+  margin-bottom: 10px;
+}
+.upload-text {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 10px;
+}
+.upload-button {
+  background-color: #f0f0f0;
+  border: none;
+  padding: 10px 20px;
+  margin: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+#file-chosen {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+/* 
+[data-testid="stFileUploader"] {
+  width: max-content;
+}
+[data-testid="stFileUploader"] section {
+  padding: 0;
+  float: left;
+}
+[data-testid="stFileUploader"] section > input + div {
+  display: none;
+}
+[data-testid="stFileUploader"] section + div {
+  float: right;
+  padding-top: 0;
+} */
+
+@media (max-width: 768px) {
+  .centered-link {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .centered-link {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Responsive text and layout adjustments */
+@media screen and (max-width: 1200px) {
+  .description-container {
+    padding: 15px;
+  }
+
+  p {
+    font-size: 18px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .description-container {
+    padding: 10px;
+  }
+
+  p {
+    font-size: 16px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .description-container {
+    padding: 8px;
+  }
+
+  p {
+    font-size: 14px;
+  }
+}
+.user-count {
+  color: var(--text-color);
+  text-align: center;
+  margin-top: 1px;
+  font-size: 20px; /* Ensure it's properly visible */
+  margin-top: 10px; /* Add margin to avoid crowding */
+}
+.centered-link {
+  display: inline-block;
+  margin-top: 20px;
+  background-color: #3498db;
+  color: white !important; /* Ensure text is always white */
+  padding: 12px 24px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.centered-link:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+.footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: #f1f1f1;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #555;
+}
