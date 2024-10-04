@@ -7,22 +7,6 @@ primaryColor = "#F63366"
 backgroundColor = "white"
 font = "sans serif"
 
-[global]
-disableWidgetStateDuplicationWarning = false
-
-[logger]
-level = "error"
-messageFormat = "%(asctime)s %(message)s"
-
-[client]
-showErrorDetails = false
-toolbarMode = "minimal"
-
 [server]
 maxUploadSize = 15
-enableCORS = false
-enableXsrfProtection = false
 
-[browser]
-fileWatcherType = "auto"
-gatherUsageStats = false
