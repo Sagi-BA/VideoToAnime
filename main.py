@@ -1,6 +1,4 @@
 import asyncio
-from functools import wraps
-
 import base64
 import gc
 import math
@@ -68,6 +66,7 @@ def load_footer():
             return footer_file.read()
     return None  # Return None if the file doesn't exist
             
+@st.cache_resource
 def load_model():
     with st.spinner("טוען מודל AI... זה עלול לקחת דקה."):
         print("🧠 טוען מודל...")
@@ -83,23 +82,6 @@ def load_model():
                 progress=True,
             )
     return model.to(device)
-
-@st.cache_resource
-def get_model():
-    return load_model()
-
-def handle_error(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
-            st.error(f"Error type: {type(e).__name__}")
-            import traceback
-            st.error(f"Traceback: {traceback.format_exc()}")
-            st.warning("The app encountered an error. Please try refreshing the page. If the problem persists, please contact support.")
-    return wrapper
 
 # Don't load the model immediately
 model = None
@@ -179,8 +161,6 @@ def predict_fn(video, start_sec, duration):
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        model = get_model()  # Get the cached model here
-        
         for i in range(duration):
             # Update progress bar and status text
             progress = (i + 1) / duration
@@ -255,73 +235,76 @@ def html5_slider(label, min_value, max_value, value, key):
     # Use a hidden number_input to get the value on the server side
     return st.number_input(label, min_value, max_value, st.session_state[key], key=f"{key}_hidden", label_visibility="collapsed")
 
-@handle_error
-def process_video(uploaded_file, start_sec, duration):
-    # Reset file pointer to the beginning
-    uploaded_file.seek(0)
-    with st.spinner('🔮 מעבד וידאו... הקסם באנימציה בעיצומו!'):
-        output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-    st.subheader("✨ וידאו מומר לסגנון אנימציה")
-    st.video(output_video)
-    st.snow()
-    st.success("🎉 ההמרה הושלמה! איך זה נראה?")
-    st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
+async def main():
+    try:
+        title, image_path, footer_content = initialize()
+        st.title(title)
 
-@handle_error
-def main():
+        # Load and display the custom expander HTML
+        expander_html = load_html_file('expander.html')
+        st.html(expander_html)  
 
-    title, image_path, footer_content = initialize()
-    st.title(title)
-
-    # Load and display the custom expander HTML
-    expander_html = load_html_file('expander.html')
-    st.html(expander_html)  
-
-    # Initialize session state for tracking Telegram message sent
-    if 'telegram_message_sent' not in st.session_state:
-        st.session_state.telegram_message_sent = False        
-    
-    tab1, tab2 = st.tabs(["🚀 נסו בעצמכם", "🌟 ראו דוגמאות"])
-    
-    with tab1:
-        uploaded_file = st.file_uploader("העלו קובץ וידאו", type=["mp4", "avi", "mov"])
+        # Initialize session state for tracking Telegram message sent
+        if 'telegram_message_sent' not in st.session_state:
+            st.session_state.telegram_message_sent = False        
         
-        if uploaded_file is not None:
-            # Display the original uploaded video
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("וידאו מקורי")
-                st.video(data=uploaded_file, format="video/mp4")
-            with col2:
-                st.subheader("הגדרות")
-                with st.form(key='video_form'):
-                    video_duration = get_video_duration(uploaded_file)
-                    start_sec = html5_slider("🕐 זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0, "start_sec")
-                    remaining_duration = video_duration - start_sec
-                    duration = html5_slider("⏱️ משך (שניות)", 1, min(remaining_duration, 30), min(remaining_duration, 1), "duration")
-                    
-                    # Display current values
+        tab1, tab2 = st.tabs(["🚀 נסו בעצמכם", "🌟 ראו דוגמאות"])
+        
+        with tab1:
+            uploaded_file = st.file_uploader("העלו קובץ וידאו", type=["mp4", "avi", "mov"])
+            
+            if uploaded_file is not None:
+                # Display the original uploaded video
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("וידאו מקורי")
+                    st.video(data=uploaded_file, format="video/mp4")
+                with col2:
+                    st.subheader("הגדרות")
+                    with st.form(key='video_form'):
+                        video_duration = get_video_duration(uploaded_file)
+                        start_sec = html5_slider("🕐 זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0, "start_sec")
+                        remaining_duration = video_duration - start_sec
+                        duration = html5_slider("⏱️ משך (שניות)", 1, min(remaining_duration, 30), min(remaining_duration, 1), "duration")
+                        
+                        # Display current values
+                        print(f"Start time: {start_sec}")
+                        print(f"Duration: {duration}")
+
+                        submit_button = st.form_submit_button(label='🎨 המר לאנימציה', use_container_width=True)
+
+                if submit_button:
                     print(f"Start time: {start_sec}")
                     print(f"Duration: {duration}")
+                    # Reset file pointer to the beginning
+                    uploaded_file.seek(0)
+                    with st.spinner('🔮 מעבד וידאו... הקסם באנימציה בעיצומו!'):
+                        output_video = predict_fn(uploaded_file.read(), start_sec, duration)
+                    st.subheader("✨ וידאו מומר לסגנון אנימציה")
+                    st.video(output_video)
+                    st.snow()
+                    st.success("🎉 ההמרה הושלמה! איך זה נראה?")
+                    st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
 
-                    submit_button = st.form_submit_button(label='🎨 המר לאנימציה', use_container_width=True)
+        with tab2:
+            show_examples()
+        
+        # Display footer content
+        st.markdown(footer_content, unsafe_allow_html=True)    
 
-            if submit_button:
-                process_video(uploaded_file, start_sec, duration)
+        # Display user count after the chatbot
+        user_count = get_user_count(formatted=True)
+        st.markdown(f"<div class='user-count' style='color: #4B0082;'>סה\"כ משתמשים: {user_count}</div>", unsafe_allow_html=True)
 
-    with tab2:
-        show_examples()
-    
-    # Display footer content
-    st.markdown(footer_content, unsafe_allow_html=True)    
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        st.error(f"Error type: {type(e).__name__}")
+        import traceback
+        st.error(f"Traceback: {traceback.format_exc()}")
 
-    # Display user count after the chatbot
-    user_count = get_user_count(formatted=True)
-    st.markdown(f"<div class='user-count' style='color: #4B0082;'>סה\"כ משתמשים: {user_count}</div>", unsafe_allow_html=True)
-    
 if __name__ == "__main__":
     if 'counted' not in st.session_state:
         st.session_state.counted = True
         increment_user_count()
     initialize_user_count()
-    main()
+    asyncio.run(main())
