@@ -292,7 +292,7 @@ async def main():
     tab1, tab2 = st.tabs(["🚀 נסו בעצמכם", "🌟 ראו דוגמאות"])
     
     with tab1:
-        uploaded_file = st.file_uploader("בחרו קובץ וידאו", type=["mp4", "avi", "mov"])
+        uploaded_file = st.file_uploader("העלו קובץ וידאו", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
             try:
