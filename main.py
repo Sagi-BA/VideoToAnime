@@ -24,6 +24,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Determine the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(torch.cuda.is_available())
 
 # Set page config for better mobile responsiveness
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="המרה של וידאו לאנימציה", page_icon="🎥")

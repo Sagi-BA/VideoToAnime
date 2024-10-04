@@ -1,9 +1,9 @@
+streamlit
 aiohttp #This is for telegram
 python-dotenv #for .env
 
-torch
-torchvision
-streamlit
+torch>=2.4.1
+torchvision>=0.19.1
 gradio
 numpy
 encoded-video
