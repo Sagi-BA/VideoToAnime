@@ -200,82 +200,15 @@ def predict_fn(video, start_sec, duration):
         del audio_all
         gc.collect()
 
-@st.cache_resource
-def load_examples():
-    file_name = "examples.json"
-    if os.path.exists(file_name):
-        with open(file_name, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    else:
-        # Default example if JSON file doesn't exist
-        return [{
-            "name": "Gaya",
-            "original": "examples/Gaya.mp4",
-            "anime": "examples/Gaya_anime.mp4",
-            "description": "המרת הווידאו של גאיה לסגנון אנימציה"
-        }]
-
-
 def show_examples():
     st.header("🎬 דוגמאות להמרות")
-    examples = load_examples()
     
-    # Custom CSS for cool design
-    st.markdown("""
-    <style>
-        .video-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: top;
-            margin-bottom: 2rem;
-            background: linear-gradient(45deg, #f3ec78, #af4261);
-            padding: 1rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .video-wrapper {
-            width: 48%;
-        }
-        .video-title {
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
-        .description {
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 1rem;
-            border-radius: 5px;
-            margin-top: 1rem;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-    for example in examples:
-        st.write(f"""
-        <div class="video-container">
-            <div class="video-wrapper">
-                <div class="video-title">מקורי</div>
-                <video width="100%" controls>
-                    <source src="{example['original']}" type="video/mp4">
-                    הדפדפן שלך לא תומך בתגית הווידאו.
-                </video>
-            </div>
-            <div class="video-wrapper">
-                <div class="video-title">סגנון אנימציה</div>
-                <video width="100%" controls>
-                    <source src="{example['anime']}" type="video/mp4">
-                    הדפדפן שלך לא תומך בתגית הווידאו.
-                </video>
-            </div>
-        </div>        
-        """, unsafe_allow_html=True)
-        
-        if st.button(f"💖 אהבת את ההמרה של {example['name']}", key=f"like_{example['name']}"):
-            st.balloons()
-            st.success(f"אהבת את ההמרה של {example['name']}!")
-
+    # Load and display the custom expander HTML
+    expander_html = load_html_file('examples.html')
+    st.html(expander_html)  
+    
+    if st.button(f"💖 אהבתי", key=f"like", use_container_width=True):
+        st.balloons()
 
 async def main():
     title, image_path, footer_content = initialize()
@@ -283,7 +216,7 @@ async def main():
 
     # Load and display the custom expander HTML
     expander_html = load_html_file('expander.html')
-    st.markdown(expander_html, unsafe_allow_html=True)  
+    st.html(expander_html)  
 
      # Initialize session state for tracking Telegram message sent
     if 'telegram_message_sent' not in st.session_state:
@@ -313,7 +246,10 @@ async def main():
                         output_video = predict_fn(uploaded_file.read(), start_sec, duration)
                     st.subheader("✨ וידאו מומר לסגנון אנימציה")
                     st.video(output_video)
+                    st.snow()
                     st.success("🎉 ההמרה הושלמה! איך זה נראה?")
+                    st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
+
                     # video_url = uploader.upload_media_to_imgur(output_video, "video", english_captioning, hebrew_captioning)
 
             except Exception as e:
