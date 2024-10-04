@@ -1,3 +1,5 @@
+import asyncio
+import base64
 import gc
 import math
 import streamlit as st
@@ -13,7 +15,9 @@ from moviepy.editor import VideoFileClip
 import warnings
 import io
 import contextlib
-
+from utils.counter import initialize_user_count, increment_user_count, get_user_count
+from utils.TelegramSender import TelegramSender
+from utils.init import initialize
 # Suppress warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -21,10 +25,51 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 # Determine the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Set page config for better mobile responsiveness
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="המרה של וידאו לאנימציה", page_icon="🎬")
+
+# Initialize session state
+if 'state' not in st.session_state:
+    st.session_state.state = {
+        'telegram_sender': TelegramSender(),
+        'counted': False,
+    }
+
+async def send_telegram_message_and_file(message, original_image, sketch_image, video_base64=None):
+    sender = TelegramSender()
+    try:
+        # Verify the bot token
+        if await sender.verify_bot_token():
+            # Send the original and sketch images
+            await sender.sketch_image(original_image, sketch_image, caption=message)
+            
+            # If video_base64 is provided, send the video as well
+            if video_base64:
+                video_bytes = base64.b64decode(video_base64)
+                video_buffer = io.BytesIO(video_bytes)
+                await sender.send_video(video_buffer, caption=message)
+        else:
+            raise Exception("Bot token verification failed")
+    except Exception as e:
+        st.error(f"Failed to send Telegram message: {str(e)}")
+    finally:
+        await sender.close_session()
+
+def load_html_file(file_name):
+    with open(file_name, 'r', encoding='utf-8') as f:
+        return f.read()
+    
+def load_footer():
+    footer_path = os.path.join('utils', 'footer.md')
+    if os.path.exists(footer_path):
+        with open(footer_path, 'r', encoding='utf-8') as footer_file:
+            return footer_file.read()
+    return None  # Return None if the file doesn't exist
+            
 @st.cache_resource
 def load_model():
-    with st.spinner("Loading AI model... This might take a minute."):
-        print("🧠 Loading Model...")
+    with st.spinner("טוען מודל AI... זה עלול לקחת דקה."):
+        print("🧠 טוען מודל...")
         # Temporarily redirect stdout and stderr
         temp_stdout = io.StringIO()
         temp_stderr = io.StringIO()
@@ -120,7 +165,7 @@ def predict_fn(video, start_sec, duration):
             # Update progress bar and status text
             progress = (i + 1) / duration
             progress_bar.progress(progress)
-            status_text.text(f"🖼️ Processing step {i + 1}/{duration}...")
+            status_text.text(f"🖼️ מעבד שלב {i + 1}/{duration}...")
             
             video, audio, fps, audio_fps = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
             gc.collect()
@@ -132,10 +177,10 @@ def predict_fn(video, start_sec, duration):
                 if audio is not None and audio_all is not None:
                     audio_all = np.hstack((audio_all, audio))
 
-        status_text.text("💾 Writing output video...")
+        status_text.text("💾 כותב את הווידאו הסופי...")
         write_video(temp_output_path, video_all, fps=fps, audio_array=audio_all, audio_fps=audio_fps, audio_codec='aac')
 
-        status_text.text("✅ Processing complete!")
+        status_text.text("✅ העיבוד הסתיים!")
         progress_bar.progress(1.0)
         
         # Read the output video into memory
@@ -155,9 +200,11 @@ def predict_fn(video, start_sec, duration):
         del audio_all
         gc.collect()
 
+@st.cache_resource
 def load_examples():
-    if os.path.exists('examples.json'):
-        with open('examples.json', 'r') as f:
+    file_name = "examples.json"
+    if os.path.exists(file_name):
+        with open(file_name, 'r', encoding='utf-8') as f:
             return json.load(f)
     else:
         # Default example if JSON file doesn't exist
@@ -165,11 +212,12 @@ def load_examples():
             "name": "Gaya",
             "original": "examples/Gaya.mp4",
             "anime": "examples/Gaya_anime.mp4",
-            "description": "Transformation of Gaya video to anime style"
+            "description": "המרת הווידאו של גאיה לסגנון אנימציה"
         }]
 
+
 def show_examples():
-    st.header("🎬 Example Transformations")
+    st.header("🎬 דוגמאות להמרות")
     examples = load_examples()
     
     # Custom CSS for cool design
@@ -208,65 +256,83 @@ def show_examples():
         st.write(f"""
         <div class="video-container">
             <div class="video-wrapper">
-                <div class="video-title">Original</div>
+                <div class="video-title">מקורי</div>
                 <video width="100%" controls>
                     <source src="{example['original']}" type="video/mp4">
-                    Your browser does not support the video tag.
+                    הדפדפן שלך לא תומך בתגית הווידאו.
                 </video>
             </div>
             <div class="video-wrapper">
-                <div class="video-title">Anime Style</div>
+                <div class="video-title">סגנון אנימציה</div>
                 <video width="100%" controls>
                     <source src="{example['anime']}" type="video/mp4">
-                    Your browser does not support the video tag.
+                    הדפדפן שלך לא תומך בתגית הווידאו.
                 </video>
             </div>
         </div>        
         """, unsafe_allow_html=True)
         
-        # Add some interactivity
-        # col1 = st.columns(1)
-        # with col1:
-        if st.button(f"💖 Like this transformation", key=f"like_{example['name']}"):
+        if st.button(f"💖 אהבת את ההמרה של {example['name']}", key=f"like_{example['name']}"):
             st.balloons()
-            st.success(f"You liked the {example['name']} transformation!")
-        
+            st.success(f"אהבת את ההמרה של {example['name']}!")
 
-def main():
-    st.title('🎬 AnimeGANV2 On Videos')
-    st.write("✨ Transform your videos into anime style with AI magic! ✨")
+
+async def main():
+    title, image_path, footer_content = initialize()
+    st.title(title)
+
+    # Load and display the custom expander HTML
+    expander_html = load_html_file('expander.html')
+    st.markdown(expander_html, unsafe_allow_html=True)  
+
+     # Initialize session state for tracking Telegram message sent
+    if 'telegram_message_sent' not in st.session_state:
+        st.session_state.telegram_message_sent = False        
     
-    tab1, tab2 = st.tabs(["🚀 Try It Yourself", "🌟 View Examples"])
+    tab1, tab2 = st.tabs(["🚀 נסו בעצמכם", "🌟 ראו דוגמאות"])
     
     with tab1:
-        uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mov"])
+        uploaded_file = st.file_uploader("בחרו קובץ וידאו", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
             try:
                 # Display the original uploaded video
-                st.subheader("Original Video")
+                st.subheader("וידאו מקורי")
                 st.video(uploaded_file)
 
                 video_duration = get_video_duration(uploaded_file)
-                start_sec = st.slider("🕐 Start Time (seconds)", 0, max(0, video_duration - 1), 0)
+                start_sec = st.slider("🕐 זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0)
                 
                 remaining_duration = video_duration - start_sec
-                duration = st.slider("⏱️ Duration (seconds)", 1, min(remaining_duration, 30), min(remaining_duration, 10))
+                duration = st.slider("⏱️ משך (שניות)", 1, min(remaining_duration, 30), min(remaining_duration, 10))
                 
-                if st.button('🎨 Transform to Anime'):
+                if st.button('🎨 המר לאנימציה'):
                     # Reset file pointer to the beginning
                     uploaded_file.seek(0)
-                    with st.spinner('🔮 Transforming video... Anime magic in progress!'):
+                    with st.spinner('🔮 מעבד וידאו... הקסם באנימציה בעיצומו!'):
                         output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-                    st.subheader("✨ Transformed Anime Video")
+                    st.subheader("✨ וידאו מומר לסגנון אנימציה")
                     st.video(output_video)
-                    st.success("🎉 Transformation complete! How does it look?")
+                    st.success("🎉 ההמרה הושלמה! איך זה נראה?")
+                    # video_url = uploader.upload_media_to_imgur(output_video, "video", english_captioning, hebrew_captioning)
+
             except Exception as e:
-                st.error(f"😢 Oops! An error occurred: {str(e)}")
-                st.error("Please try uploading a different video or check the file format.")
+                st.error(f"😢 אופס! התרחשה שגיאה: {str(e)}")
+                st.error("אנא נסה להעלות וידאו אחר או בדוק את הפורמט.")
     
     with tab2:
         show_examples()
+    
+    # Display footer content
+    st.markdown(footer_content, unsafe_allow_html=True)    
+
+    # Display user count after the chatbot
+    user_count = get_user_count(formatted=True)
+    st.markdown(f"<p class='user-count' style='color: #4B0082;'>סה\"כ משתמשים: {user_count}</p>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main()
+    if 'counted' not in st.session_state:
+        st.session_state.counted = True
+        increment_user_count()
+    initialize_user_count()
+    asyncio.run(main())

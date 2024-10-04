@@ -6,9 +6,11 @@ This application leverages the power of AnimeGANV2, a state-of-the-art AI model,
 
 > Experience the app live: [AnimeGANV2 Video Converter](https://sagi-ai-video-to-anime.streamlit.app/)
 
-## Watch the video tutorial
+## Watch the video examples
 
-[![Watch the video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://youtu.be/VIDEO_ID)
+[![Watch the video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://i.imgur.com/UmQBTwH.mp4)
+
+[![Watch the video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://i.imgur.com/y5hIxII.mp4)
 
 ## Features
 

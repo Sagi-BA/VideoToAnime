@@ -16,15 +16,15 @@
 
 body {
   font-family: "Exo 2", sans-serif;
-  direction: rtl;
+  direction: rtl; /* Set right-to-left direction */
 }
 
 h1 {
-  font-size: 56px; /* Restore the original large size for the title */
-  color: var(--text-color); /* Keep the original accent color */
-  text-shadow: 0 0 10px var(--glow-color); /* Keep the glow effect */
-  text-align: center; /* Ensure it's centered on all screen sizes */
-  margin-top: 20px; /* Add a bit of space from the top */
+  font-size: 56px; /* Large size for the title */
+  color: var(--text-color);
+  text-shadow: 0 0 10px var(--glow-color);
+  text-align: center;
+  margin-top: 20px;
 }
 
 h2,
@@ -41,11 +41,11 @@ p {
   font-size: 20px !important;
 }
 
+/* Responsive adjustments */
 @media (max-width: 1200px) {
   h1 {
     font-size: 2.5rem;
   }
-
   p {
     font-size: 18px;
   }
@@ -55,7 +55,6 @@ p {
   h1 {
     font-size: 2rem;
   }
-
   p {
     font-size: 16px;
   }
@@ -65,7 +64,6 @@ p {
   h1 {
     font-size: 1.5rem;
   }
-
   p {
     font-size: 14px;
   }
@@ -102,7 +100,43 @@ p {
   }
 }
 
-/* Responsive image container */
+/* Slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 10px;
+  background: var(--secondary-bg-color);
+  border-radius: 5px;
+  direction: rtl; /* Ensure slider runs from right to left */
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Video and images responsive styling */
+video,
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
 .image-wrapper img {
   width: 100%;
   height: auto;
@@ -115,24 +149,27 @@ p {
   }
 }
 
-/* Ensure video and images fit smaller screens */
-video,
-img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-}
-
 /* Centered link styles */
 .centered-link {
   display: inline-block;
-  margin-top: 10px;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 16px;
-  width: 100%;
-  text-align: center;
+  margin-top: 20px;
+  background-color: #3498db;
+  color: white !important;
+  padding: 12px 24px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
+
+.centered-link:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Upload container */
 .upload-container {
   border: 2px dashed #ccc;
   border-radius: 5px;
@@ -140,16 +177,19 @@ img {
   text-align: center;
   margin-bottom: 20px;
 }
+
 .upload-icon {
   font-size: 48px;
   color: #1e90ff;
   margin-bottom: 10px;
 }
+
 .upload-text {
   font-size: 16px;
   color: #666;
   margin-bottom: 10px;
 }
+
 .upload-button {
   background-color: #f0f0f0;
   border: none;
@@ -159,27 +199,27 @@ img {
   cursor: pointer;
   font-size: 14px;
 }
+
 #file-chosen {
   margin-top: 10px;
   font-size: 14px;
   color: #666;
 }
-/* 
-[data-testid="stFileUploader"] {
-  width: max-content;
-}
-[data-testid="stFileUploader"] section {
-  padding: 0;
-  float: left;
-}
-[data-testid="stFileUploader"] section > input + div {
-  display: none;
-}
-[data-testid="stFileUploader"] section + div {
-  float: right;
-  padding-top: 0;
-} */
 
+/* Footer styling */
+.footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: #f1f1f1;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+/* Responsive text and layout adjustments */
 @media (max-width: 768px) {
   .centered-link {
     padding: 8px 16px;
@@ -194,68 +234,14 @@ img {
   }
 }
 
-/* Responsive text and layout adjustments */
-@media screen and (max-width: 1200px) {
-  .description-container {
-    padding: 15px;
-  }
-
-  p {
-    font-size: 18px;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .description-container {
-    padding: 10px;
-  }
-
-  p {
-    font-size: 16px;
-  }
-}
-
-@media screen and (max-width: 480px) {
-  .description-container {
-    padding: 8px;
-  }
-
-  p {
-    font-size: 14px;
-  }
-}
+/* User count */
 .user-count {
   color: var(--text-color);
   text-align: center;
-  margin-top: 1px;
-  font-size: 20px; /* Ensure it's properly visible */
-  margin-top: 10px; /* Add margin to avoid crowding */
+  font-size: 20px;
+  margin-top: 10px;
 }
-.centered-link {
-  display: inline-block;
-  margin-top: 20px;
-  background-color: #3498db;
-  color: white !important; /* Ensure text is always white */
-  padding: 12px 24px;
-  border-radius: 30px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-.centered-link:hover {
-  background-color: #2980b9;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-}
-.footer {
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  background-color: #f1f1f1;
-  text-align: center;
-  padding: 10px 0;
-  font-size: 14px;
-  color: #555;
+.rev_slider_wrapper,
+.rev_slider_wrapper * {
+  direction: ltr;
 }
