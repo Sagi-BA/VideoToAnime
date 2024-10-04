@@ -213,7 +213,7 @@ def show_examples():
 def html5_slider(label, min_value, max_value, value, key):
     # Initialize session state for this slider if it doesn't exist
     if key not in st.session_state:
-        st.session_state[key] = value
+        st.session_state[key] = value #sagi
         
     # Create the HTML slider
     components.html(
