@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from encoded_video import EncodedVideo, write_video
 from torchvision.transforms.functional import center_crop, to_tensor
-import json
+import streamlit.components.v1 as components
 import os
 import tempfile
 import uuid
@@ -210,6 +210,31 @@ def show_examples():
     if st.button(f"💖 אהבתי", key=f"like", use_container_width=True):
         st.balloons()
 
+def html5_slider(label, min_value, max_value, value, key):
+    # Initialize session state for this slider if it doesn't exist
+    if key not in st.session_state:
+        st.session_state[key] = value
+        
+    # Create the HTML slider
+    components.html(
+        f"""
+        <label for="{key}">{label}: <span id="{key}_value">{st.session_state[key]}</span></label>
+        <input type="range" id="{key}" 
+               min="{min_value}" max="{max_value}" 
+               value="{st.session_state[key]}" 
+               style="width: 100%;"
+               oninput="
+                   document.getElementById('{key}_value').innerHTML = this.value;
+                   document.getElementById('{key}_hidden').value = this.value;
+               ">
+        <input type="hidden" id="{key}_hidden" name="{key}">
+        """,
+        height=70,
+    )
+
+    # Use a hidden number_input to get the value on the server side
+    return st.number_input(label, min_value, max_value, st.session_state[key], key=f"{key}_hidden", label_visibility="collapsed")
+
 async def main():
     title, image_path, footer_content = initialize()
     st.title(title)
@@ -230,16 +255,27 @@ async def main():
         if uploaded_file is not None:
             try:                
                 # Display the original uploaded video
-                st.subheader("וידאו מקורי")
-                st.video(uploaded_file)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("וידאו מקורי")
+                    st.video(data=uploaded_file, format="video/mp4")
+                with col2:
+                    st.subheader("הגדרות")
+                    with st.form(key='video_form'):
+                        video_duration = get_video_duration(uploaded_file)
+                        start_sec = html5_slider("🕐 זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0, "start_sec")
+                        remaining_duration = video_duration - start_sec
+                        duration = html5_slider("⏱️ משך (שניות)", 1, min(remaining_duration, 30), min(remaining_duration, 1), "duration")
+                        
+                        # Display current values
+                        print(f"Start time: {start_sec}")
+                        print(f"Duration: {duration}")
 
-                video_duration = get_video_duration(uploaded_file)
-                start_sec = st.slider("🕐 זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0)
-                
-                remaining_duration = video_duration - start_sec
-                duration = st.slider("⏱️ משך (שניות)", 1, min(remaining_duration, 30), min(remaining_duration, 10))
-                
-                if st.button('🎨 המר לאנימציה'):
+                        submit_button = st.form_submit_button(label='🎨 המר לאנימציה', use_container_width=True)
+
+                if submit_button:
+                    print(f"Start time: {start_sec}")
+                    print(f"Duration: {duration}")
                     # Reset file pointer to the beginning
                     uploaded_file.seek(0)
                     with st.spinner('🔮 מעבד וידאו... הקסם באנימציה בעיצומו!'):
@@ -249,8 +285,6 @@ async def main():
                     st.snow()
                     st.success("🎉 ההמרה הושלמה! איך זה נראה?")
                     st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
-
-                    # video_url = uploader.upload_media_to_imgur(output_video, "video", english_captioning, hebrew_captioning)
 
             except Exception as e:
                 st.error(f"😢 אופס! התרחשה שגיאה: {str(e)}")
@@ -264,7 +298,7 @@ async def main():
 
     # Display user count after the chatbot
     user_count = get_user_count(formatted=True)
-    st.markdown(f"<p class='user-count' style='color: #4B0082;'>סה\"כ משתמשים: {user_count}</p>", unsafe_allow_html=True)
+    st.markdown(f"<div class='user-count' style='color: #4B0082;'>סה\"כ משתמשים: {user_count}</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     if 'counted' not in st.session_state:

@@ -12,11 +12,14 @@
 /* Streamlit-specific styles */
 .stApp {
   background-color: var(--main-bg-color);
+  direction: rtl; /* Set right-to-left direction */
 }
 
-body {
-  font-family: "Exo 2", sans-serif;
-  direction: rtl; /* Set right-to-left direction */
+body,
+html {
+  direction: RTL;
+  unicode-bidi: bidi-override;
+  text-align: right;
 }
 
 h1 {
@@ -32,7 +35,9 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Orbitron", sans-serif;
+  direction: RTL;
+  unicode-bidi: bidi-override;
+  text-align: right;
   color: var(--accent-color);
   text-shadow: 0 0 10px var(--glow-color);
 }
@@ -109,24 +114,6 @@ input[type="range"] {
   background: var(--secondary-bg-color);
   border-radius: 5px;
   direction: rtl; /* Ensure slider runs from right to left */
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background: var(--accent-color);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: var(--accent-color);
-  border-radius: 50%;
-  cursor: pointer;
 }
 
 /* Video and images responsive styling */
@@ -206,8 +193,8 @@ img {
   color: #666;
 }
 .stVideo {
-  width: 50% !important;
-  height: 50% !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 .stVideo > video {
   width: 100% !important;
@@ -245,10 +232,6 @@ img {
 .user-count {
   color: var(--text-color);
   text-align: center;
-  font-size: 20px;
-  margin-top: 10px;
-}
-.rev_slider_wrapper,
-.rev_slider_wrapper * {
-  direction: ltr;
+  font-size: 30px;
+  margin-top: 1px;
 }
