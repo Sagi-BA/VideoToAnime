@@ -178,7 +178,7 @@ def show_examples():
         .video-container {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: top;
             margin-bottom: 2rem;
             background: linear-gradient(45deg, #f3ec78, #af4261);
             padding: 1rem;
@@ -221,23 +221,16 @@ def show_examples():
                     Your browser does not support the video tag.
                 </video>
             </div>
-        </div>
-        <div class="description">
-            <h3>{example['name']}</h3>
-            <p>{example['description']}</p>
-        </div>
+        </div>        
         """, unsafe_allow_html=True)
         
         # Add some interactivity
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(f"💖 Like this transformation", key=f"like_{example['name']}"):
-                st.balloons()
-                st.success(f"You liked the {example['name']} transformation!")
-        with col2:
-            if st.button(f"🔍 Learn more", key=f"learn_{example['name']}"):
-                st.info(f"The {example['name']} video was transformed using AnimeGAN-V2. "
-                        f"Try uploading a similar video to see how it transforms!")
+        # col1 = st.columns(1)
+        # with col1:
+        if st.button(f"💖 Like this transformation", key=f"like_{example['name']}"):
+            st.balloons()
+            st.success(f"You liked the {example['name']} transformation!")
+        
 
 def main():
     st.title('🎬 AnimeGANV2 On Videos')

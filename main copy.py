@@ -1,7 +1,6 @@
 import gc
 import math
 import streamlit as st
-import gradio as gr
 import numpy as np
 import torch
 from encoded_video import EncodedVideo, write_video
@@ -11,45 +10,36 @@ import os
 import tempfile
 import uuid
 from moviepy.editor import VideoFileClip
+import warnings
+import io
+import contextlib
+
+# Suppress warnings
+warnings.filterwarnings("ignore", category=SyntaxWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Determine the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 @st.cache_resource
 def load_model():
-    print(f"🧠 Loading Model on {device}...")
-    model = torch.hub.load(
-        "AK391/animegan2-pytorch:main",
-        "generator",
-        pretrained=True,
-        progress=True,
-    )
+    with st.spinner("Loading AI model... This might take a minute."):
+        print("🧠 Loading Model...")
+        # Temporarily redirect stdout and stderr
+        temp_stdout = io.StringIO()
+        temp_stderr = io.StringIO()
+        with contextlib.redirect_stdout(temp_stdout), contextlib.redirect_stderr(temp_stderr):
+            model = torch.hub.load(
+                "AK391/animegan2-pytorch:main",
+                "generator",
+                pretrained=True,
+                device=device,
+                progress=True,
+            )
     return model.to(device)
 
-model = load_model()
-
-
-import gc
-import math
-import streamlit as st
-import gradio as gr
-import numpy as np
-import torch
-from encoded_video import EncodedVideo, write_video
-from torchvision.transforms.functional import center_crop, to_tensor
-
-@st.cache_resource
-def load_model():
-    print("🧠 Loading Model...")
-    return torch.hub.load(
-        "AK391/animegan2-pytorch:main",
-        "generator",
-        pretrained=True,
-        device="cuda" if torch.cuda.is_available() else "cpu",
-        progress=True,
-    )
-
-model = load_model()
+# Don't load the model immediately
+model = None
 
 def uniform_temporal_subsample(x: torch.Tensor, num_samples: int, temporal_dim: int = -3) -> torch.Tensor:
     t = x.shape[temporal_dim]
@@ -71,6 +61,10 @@ def short_side_scale(x: torch.Tensor, size: int, interpolation: str = "bilinear"
     return torch.nn.functional.interpolate(x, size=(new_h, new_w), mode=interpolation, align_corners=False)
 
 def inference_step(vid, start_sec, duration, out_fps):
+    global model
+    if model is None:
+        model = load_model()
+
     clip = vid.get_clip(start_sec, start_sec + duration)
     video_arr = torch.from_numpy(clip['video']).permute(3, 0, 1, 2)
     audio_arr = np.expand_dims(clip['audio'], 0) if 'audio' in clip else None
@@ -87,116 +81,6 @@ def inference_step(vid, start_sec, duration, out_fps):
         output_video = output.permute(0, 2, 3, 1).numpy()
 
     return output_video, audio_arr, out_fps, audio_fps
-
-def predict_fn(video, start_sec, duration):
-    out_fps = 12
-    # Save the uploaded video temporarily
-    with open("temp_input.mp4", "wb") as f:
-        f.write(video)
-    
-    vid = EncodedVideo.from_path("temp_input.mp4")
-    video_all = None
-    audio_all = None
-    
-    # Create a progress bar
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for i in range(duration):
-        # Update progress bar and status text
-        progress = (i + 1) / duration
-        progress_bar.progress(progress)
-        status_text.text(f"🖼️ Processing step {i + 1}/{duration}...")
-        
-        video, audio, fps, audio_fps = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
-        gc.collect()
-        if i == 0:
-            video_all = video
-            audio_all = audio
-        else:
-            video_all = np.concatenate((video_all, video))
-            if audio is not None and audio_all is not None:
-                audio_all = np.hstack((audio_all, audio))
-
-    status_text.text("💾 Writing output video...")
-    output_path = 'out.mp4'
-    write_video(output_path, video_all, fps=fps, audio_array=audio_all, audio_fps=audio_fps, audio_codec='aac')
-
-    status_text.text("✅ Processing complete!")
-    progress_bar.progress(1.0)
-    
-    del video_all
-    del audio_all
-
-    return output_path
-
-def gradio_interface():
-    with gr.Blocks() as iface:
-        gr.Markdown("# AnimeGANV2 On Videos")
-        gr.Markdown("Applying AnimeGAN-V2 to frames from video clips")
-        
-        with gr.Row():
-            input_video = gr.Video(label="Input Video")
-            output_video = gr.Video(label="Output Video")
-        
-        with gr.Row():
-            start_sec = gr.Slider(minimum=0, maximum=300, step=1, value=0, label="Start Time (seconds)")
-            duration = gr.Slider(minimum=1, maximum=4, step=1, value=2, label="Duration (seconds)")
-        
-        process_btn = gr.Button("Process Video")
-        process_btn.click(fn=predict_fn, inputs=[input_video, start_sec, duration], outputs=output_video)
-        
-        gr.Markdown("""
-        <p style='text-align: center'>
-            <a href='https://github.com/bryandlee/animegan2-pytorch' target='_blank'>Github Repo Pytorch</a>
-        </p>
-        """)
-    
-    return iface
-
-def load_examples():
-    if os.path.exists('examples.json'):
-        with open('examples.json', 'r') as f:
-            return json.load(f)
-    else:
-        # Default example if JSON file doesn't exist
-        return [{
-            "name": "Gaya",
-            "original": "examples/Gaya.mp4",
-            "anime": "examples/Gaya_anime.mp4",
-            "description": "Transformation of Gaya video to anime style"
-        }]
-
-def show_examples():
-    st.header("Example Transformations")
-    examples = load_examples()
-    
-    for example in examples:
-        with st.expander(f"{example['name']} Example"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("Original")
-                st.video(example['original'])
-            with col2:
-                st.subheader("Anime Style")
-                st.video(example['anime'])
-            st.write(example['description'])
-
-import gc
-import math
-import streamlit as st
-import gradio as gr
-import numpy as np
-import torch
-from encoded_video import EncodedVideo, write_video
-from torchvision.transforms.functional import center_crop, to_tensor
-import json
-import os
-import tempfile
-import uuid
-from moviepy.editor import VideoFileClip
-
-# ... [Previous code remains unchanged] ...
 
 def get_video_duration(video_file):
     with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmpfile:
@@ -271,29 +155,123 @@ def predict_fn(video, start_sec, duration):
         del audio_all
         gc.collect()
 
-def main():
-    st.title('AnimeGANV2 On Videos')
-    st.write("Applying AnimeGAN-V2 to frames from video clips")
+def load_examples():
+    if os.path.exists('examples.json'):
+        with open('examples.json', 'r') as f:
+            return json.load(f)
+    else:
+        # Default example if JSON file doesn't exist
+        return [{
+            "name": "Gaya",
+            "original": "examples/Gaya.mp4",
+            "anime": "examples/Gaya_anime.mp4",
+            "description": "Transformation of Gaya video to anime style"
+        }]
+
+def show_examples():
+    st.header("🎬 Example Transformations")
+    examples = load_examples()
     
-    tab1, tab2 = st.tabs(["Try It Yourself", "View Examples"])
+    # Custom CSS for cool design
+    st.markdown("""
+    <style>
+        .video-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #f3ec78, #af4261);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .video-wrapper {
+            width: 48%;
+        }
+        .video-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .description {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    for example in examples:
+        st.markdown(f"""
+        <div class="video-container">
+            <div class="video-wrapper">
+                <div class="video-title">Original</div>
+            </div>
+            <div class="video-wrapper">
+                <div class="video-title">Anime Style</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.video(example['original'])
+        with col2:
+            st.video(example['anime'])
+        
+        st.markdown(f"""
+        <div class="description">
+            <h3>{example['name']}</h3>
+            <p>{example['description']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Add some interactivity
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(f"💖 Like this transformation", key=f"like_{example['name']}"):
+                st.balloons()
+                st.success(f"You liked the {example['name']} transformation!")
+        with col2:
+            if st.button(f"🔍 Learn more", key=f"learn_{example['name']}"):
+                st.info(f"The {example['name']} video was transformed using AnimeGAN-V2. "
+                        f"Try uploading a similar video to see how it transforms!")
+
+def main():
+    st.title('🎬 AnimeGANV2 On Videos')
+    st.write("✨ Transform your videos into anime style with AI magic! ✨")
+    
+    tab1, tab2 = st.tabs(["🚀 Try It Yourself", "🌟 View Examples"])
     
     with tab1:
         uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mov"])
         
         if uploaded_file is not None:
-            video_duration = get_video_duration(uploaded_file)
-            start_sec = st.slider("Start Time (seconds)", 0, max(0, video_duration - 1), 0)
-            
-            remaining_duration = video_duration - start_sec
-            duration = st.slider("Duration (seconds)", 1, remaining_duration, min(remaining_duration, 10))
-            
-            if st.button('Process Video'):
-                # Reset file pointer to the beginning
-                uploaded_file.seek(0)
-                output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-                st.video(output_video)
-        else:
-            st.write("Please upload a video to begin.")
+            try:
+                # Display the original uploaded video
+                st.subheader("Original Video")
+                st.video(uploaded_file)
+
+                video_duration = get_video_duration(uploaded_file)
+                start_sec = st.slider("🕐 Start Time (seconds)", 0, max(0, video_duration - 1), 0)
+                
+                remaining_duration = video_duration - start_sec
+                duration = st.slider("⏱️ Duration (seconds)", 1, min(remaining_duration, 30), min(remaining_duration, 10))
+                
+                if st.button('🎨 Transform to Anime'):
+                    # Reset file pointer to the beginning
+                    uploaded_file.seek(0)
+                    with st.spinner('🔮 Transforming video... Anime magic in progress!'):
+                        output_video = predict_fn(uploaded_file.read(), start_sec, duration)
+                    st.subheader("✨ Transformed Anime Video")
+                    st.video(output_video)
+                    st.success("🎉 Transformation complete! How does it look?")
+            except Exception as e:
+                st.error(f"😢 Oops! An error occurred: {str(e)}")
+                st.error("Please try uploading a different video or check the file format.")
     
     with tab2:
         show_examples()
