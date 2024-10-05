@@ -125,33 +125,33 @@ def inference_step(vid, start_sec, duration, out_fps):
 
     return output_video, audio_arr, out_fps, audio_fps
 
-def get_video_duration(video_file):
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmpfile:
-        tmpfile.write(video_file.read())
-        tmpfile_path = tmpfile.name
+def save_uploaded_file(uploaded_file):
+    # Get the file extension from the uploaded file
+    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+    
+    # Create a temporary file with the correct extension
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tfile:
+        tfile.write(uploaded_file.read())
+        temp_file_path = tfile.name
+    
+    return temp_file_path
 
-    video = VideoFileClip(tmpfile_path)
-    duration = video.duration
-    video.close()
-    os.unlink(tmpfile_path)
+def get_video_duration(file_path):
+    with VideoFileClip(file_path) as video:
+        duration = video.duration
     return int(duration)
 
-def predict_fn(video, start_sec, duration):
+def predict_fn(video_path, start_sec, duration):
     out_fps = 12
     
     # Generate a unique identifier for this processing job
     job_id = str(uuid.uuid4())
     
-    # Create temporary input and output file names
-    temp_input_path = f"temp_input_{job_id}.mp4"
+    # Create temporary output file name
     temp_output_path = f"temp_output_{job_id}.mp4"
     
     try:
-        # Save the uploaded video temporarily
-        with open(temp_input_path, "wb") as f:
-            f.write(video)
-        
-        vid = EncodedVideo.from_path(temp_input_path)
+        vid = EncodedVideo.from_path(video_path)
         video_all = None
         audio_all = None
         
@@ -188,9 +188,7 @@ def predict_fn(video, start_sec, duration):
         return output_video
     
     finally:
-        # Clean up temporary files
-        if os.path.exists(temp_input_path):
-            os.remove(temp_input_path)
+        # Clean up temporary output file
         if os.path.exists(temp_output_path):
             os.remove(temp_output_path)
         
@@ -229,40 +227,41 @@ async def main():
             uploaded_file = st.file_uploader("העלו קובץ וידאו", type=["mp4", "avi", "mov"])
             
             if uploaded_file is not None:
-                # Display the original uploaded video
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.subheader("וידאו מקורי")
-                    st.video(data=uploaded_file, format="video/mp4")
-                with col2:
-                    st.subheader("הגדרות")
-                    with st.form(key='video_form'):
-                        video_duration = get_video_duration(uploaded_file)                        
-                        start_sec = st.slider("זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0)
-                        
-                        remaining_duration = video_duration - start_sec
-                        duration = st.slider("משך זמן (שניות)", 1, remaining_duration, min(remaining_duration, 10))
-                        
-                        # Display current values
+                temp_file_path = save_uploaded_file(uploaded_file)
+                try:
+                    # Display the original uploaded video
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("וידאו מקורי")
+                        st.video(temp_file_path)
+                    with col2:
+                        st.subheader("הגדרות")
+                        with st.form(key='video_form'):
+                            video_duration = get_video_duration(temp_file_path)                        
+                            start_sec = st.slider("זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0)
+                            
+                            remaining_duration = video_duration - start_sec
+                            duration = st.slider("משך זמן (שניות)", 1, remaining_duration, min(remaining_duration, 10))
+                            
+                            submit_button = st.form_submit_button(label='🎨 המר לאנימציה', use_container_width=True)
+
+                    if submit_button:
                         print(f"Start time: {start_sec}")
                         print(f"Duration: {duration}")
-
-                        submit_button = st.form_submit_button(label='🎨 המר לאנימציה', use_container_width=True)
-
-                if submit_button:
-                    print(f"Start time: {start_sec}")
-                    print(f"Duration: {duration}")
-                    # Reset file pointer to the beginning
-                    uploaded_file.seek(0)
-                    with st.spinner('🔮 מעבד וידאו... הקסם באנימציה בעיצומו!'):
-                        output_video = predict_fn(uploaded_file.read(), start_sec, duration)
-                    st.subheader("✨ וידאו מומר לסגנון אנימציה")
-                    st.video(output_video)
-                    st.snow()
-                    st.success("🎉 ההמרה הושלמה! איך זה נראה?")
-                    st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
+                        with st.spinner('🔮 מעבד וידאו... הקסם באנימציה בעיצומו!'):
+                            output_video = predict_fn(temp_file_path, start_sec, duration)
+                        st.subheader("✨ וידאו מומר לסגנון אנימציה")
+                        st.video(output_video)
+                        st.snow()
+                        st.success("🎉 ההמרה הושלמה! איך זה נראה?")
+                        st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
+                finally:
+                    # Clean up the temporary file
+                    if os.path.exists(temp_file_path):
+                        os.remove(temp_file_path)
             else:
                 st.warning('☝️ העלו קובץ וידאו')
+        
         with tab2:
             show_examples()
         
