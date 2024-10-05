@@ -59,14 +59,7 @@ async def send_telegram_message_and_file(message, original_image, sketch_image, 
 def load_html_file(file_name):
     with open(file_name, 'r', encoding='utf-8') as f:
         return f.read()
-    
-def load_footer():
-    footer_path = os.path.join('utils', 'footer.md')
-    if os.path.exists(footer_path):
-        with open(footer_path, 'r', encoding='utf-8') as footer_file:
-            return footer_file.read()
-    return None  # Return None if the file doesn't exist
-            
+                
 @st.cache_resource
 def load_model():
     with st.spinner("טוען מודל AI... זה עלול לקחת דקה."):
@@ -82,7 +75,8 @@ def load_model():
                 device=device,
                 progress=True,
             )
-    return model.to(device)
+    pass
+    return model.to(device)    
 
 # Don't load the model immediately
 model = None
@@ -108,8 +102,11 @@ def short_side_scale(x: torch.Tensor, size: int, interpolation: str = "bilinear"
 
 def inference_step(vid, start_sec, duration, out_fps):
     global model
-    if model is None:
+    try:
         model = load_model()
+    except Exception as e:
+        st.error(f"Failed to load model: {str(e)}")
+        return
 
     clip = vid.get_clip(start_sec, start_sec + duration)
     video_arr = torch.from_numpy(clip['video']).permute(3, 0, 1, 2)
@@ -200,6 +197,8 @@ def predict_fn(video, start_sec, duration):
         del video_all
         del audio_all
         gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # If using CUDA
 
 def show_examples():
     st.header("🎬 דוגמאות להמרות")
@@ -210,31 +209,6 @@ def show_examples():
     
     if st.button(f"💖 אהבתי", key=f"like", use_container_width=True):
         st.balloons()
-
-def html5_slider(label, min_value, max_value, value, key):
-    # Initialize session state for this slider if it doesn't exist
-    if key not in st.session_state:
-        st.session_state[key] = value #sagi
-        
-    # Create the HTML slider
-    components.html(
-        f"""
-        <label for="{key}">{label}: <span id="{key}_value">{st.session_state[key]}</span></label>
-        <input type="range" id="{key}" 
-               min="{min_value}" max="{max_value}" 
-               value="{st.session_state[key]}" 
-               style="width: 100%;"
-               oninput="
-                   document.getElementById('{key}_value').innerHTML = this.value;
-                   document.getElementById('{key}_hidden').value = this.value;
-               ">
-        <input type="hidden" id="{key}_hidden" name="{key}">
-        """,
-        height=70,
-    )
-
-    # Use a hidden number_input to get the value on the server side
-    return st.number_input(label, min_value, max_value, st.session_state[key], key=f"{key}_hidden", label_visibility="collapsed")
 
 async def main():
     try:
@@ -263,10 +237,11 @@ async def main():
                 with col2:
                     st.subheader("הגדרות")
                     with st.form(key='video_form'):
-                        video_duration = get_video_duration(uploaded_file)
-                        start_sec = html5_slider("🕐 זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0, "start_sec")
+                        video_duration = get_video_duration(uploaded_file)                        
+                        start_sec = st.slider("זמן התחלה (שניות)", 0, max(0, video_duration - 1), 0)
+                        
                         remaining_duration = video_duration - start_sec
-                        duration = html5_slider("⏱️ משך (שניות)", 1, min(remaining_duration, 30), min(remaining_duration, 1), "duration")
+                        duration = st.slider("משך זמן (שניות)", 1, remaining_duration, min(remaining_duration, 10))
                         
                         # Display current values
                         print(f"Start time: {start_sec}")
@@ -286,12 +261,13 @@ async def main():
                     st.snow()
                     st.success("🎉 ההמרה הושלמה! איך זה נראה?")
                     st.toast('ההמרה הושלמה! איך זה נראה', icon='🎉')
-
+            else:
+                st.warning('☝️ העלו קובץ וידאו')
         with tab2:
             show_examples()
         
         # Display footer content
-        st.markdown(footer_content, unsafe_allow_html=True)    
+        st.sidebar.markdown(footer_content, unsafe_allow_html=True)
 
         # Display user count after the chatbot
         user_count = get_user_count(formatted=True)

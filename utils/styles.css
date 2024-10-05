@@ -12,14 +12,12 @@
 /* Streamlit-specific styles */
 .stApp {
   background-color: var(--main-bg-color);
-  direction: rtl; /* Set right-to-left direction */
+  direction: rtl;
 }
 
 body,
 html {
-  direction: RTL;
   unicode-bidi: bidi-override;
-  text-align: right;
 }
 
 h1 {
@@ -29,23 +27,27 @@ h1 {
   text-align: center;
   margin-top: 20px;
 }
-
+.slider-ltr {
+  direction: ltr;
+}
 h2,
 h3,
 h4,
 h5,
 h6 {
-  direction: RTL;
-  unicode-bidi: bidi-override;
-  text-align: right;
   color: var(--accent-color);
   text-shadow: 0 0 10px var(--glow-color);
 }
-
+label {
+  text-align: right;
+  direction: rtl;
+}
 p {
   font-size: 20px !important;
 }
-
+[data-testid="stForm"] {
+  direction: ltr;
+}
 /* Responsive adjustments */
 @media (max-width: 1200px) {
   h1 {
@@ -113,7 +115,6 @@ input[type="range"] {
   height: 10px;
   background: var(--secondary-bg-color);
   border-radius: 5px;
-  direction: rtl; /* Ensure slider runs from right to left */
 }
 
 /* Video and images responsive styling */
