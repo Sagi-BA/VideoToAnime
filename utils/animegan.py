@@ -33,7 +33,9 @@ class AnimeGAN:
 
         providers = ['CUDAExecutionProvider'] if ort.get_device() == "GPU" else ['CPUExecutionProvider']
 
-        self.ort_sess = ort.InferenceSession(model_path, providers=providers)
+        # self.ort_sess = ort.InferenceSession(model_path, providers=providers)
+        # Explicitly use CPU provider
+        self.ort_sess = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
     def to_32s(self, x):
         return 256 if x < 256 else x - x%32
