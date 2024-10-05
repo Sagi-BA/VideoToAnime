@@ -1,11 +1,20 @@
 streamlit
 aiohttp #This is for telegram
-python-dotenv #for .env
-torch
-torchvision
+# python-dotenv #for .env
+# torch
+# torchvision
+# numpy
+# encoded-video
+# moviepy
+# Pillow
+# av
+# opencv-python-headless
+
+opencv-python
+mediapipe
+stow
 numpy
-encoded-video
-moviepy
-Pillow
-av
-opencv-python-headless
+tqdm
+onnxruntime
+tf2onnx
+tensorflow==2.*
