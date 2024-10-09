@@ -63,18 +63,28 @@ def load_html_file(file_name):
                 
 @st.cache_resource
 def load_model():
+    model_path = "animegan2_model.pth"
     with st.spinner("טוען מודל AI... זה עלול לקחת מספר שניות."):
         print("🧠 טוען מודל...")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = torch.hub.load(
-            "AK391/animegan2-pytorch:main",
-            "generator",
-            pretrained=False,  # Set to False as we're loading from local file
-            device=device,
-        )
-        model.load_state_dict(torch.load("animegan2_model.pth", map_location=device))
-        model.eval()
-    return model.to(device)
+        try:
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Model file not found: {model_path}")
+            
+            model = torch.hub.load(
+                "AK391/animegan2-pytorch:main",
+                "generator",
+                pretrained=False,
+                device=device,
+            )
+            model.load_state_dict(torch.load(model_path, map_location=device))
+            model.eval()
+            print("Model loaded successfully from local file.")
+            return model.to(device)
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            st.error(f"Failed to load model: {str(e)}")
+            return None
 
 # Don't load the model immediately
 model = None
@@ -100,32 +110,32 @@ def short_side_scale(x: torch.Tensor, size: int, interpolation: str = "bilinear"
 
 def inference_step(vid, start_sec, duration, out_fps):
     global model
+    if model is None:
+        model = load_model()
+    if model is None:
+        st.error("Failed to load the model. Please try again later.")
+        return None
+    
     try:
-        if model is None:
-            model = load_model()
-        if model is None:
-            raise Exception("Failed to load model")
+        clip = vid.get_clip(start_sec, start_sec + duration)
+        video_arr = torch.from_numpy(clip['video']).permute(3, 0, 1, 2)
+        audio_arr = np.expand_dims(clip['audio'], 0) if 'audio' in clip else None
+        audio_fps = None if not vid._has_audio else vid._container.streams.audio[0].sample_rate
 
+        x = uniform_temporal_subsample(video_arr, duration * out_fps)
+        x = center_crop(short_side_scale(x, 512), 512)
+        x /= 255.0
+        x = x.permute(1, 0, 2, 3)
+        with torch.no_grad():
+            x = x.to(device)
+            output = model(x).detach().cpu()
+            output = (output * 0.5 + 0.5).clip(0, 1) * 255.0
+            output_video = output.permute(0, 2, 3, 1).numpy()
+
+        return output_video, audio_arr, out_fps, audio_fps
     except Exception as e:
-        st.error(f"Failed to load model: {str(e)}")
-        return
-
-    clip = vid.get_clip(start_sec, start_sec + duration)
-    video_arr = torch.from_numpy(clip['video']).permute(3, 0, 1, 2)
-    audio_arr = np.expand_dims(clip['audio'], 0) if 'audio' in clip else None
-    audio_fps = None if not vid._has_audio else vid._container.streams.audio[0].sample_rate
-
-    x = uniform_temporal_subsample(video_arr, duration * out_fps)
-    x = center_crop(short_side_scale(x, 512), 512)
-    x /= 255.0
-    x = x.permute(1, 0, 2, 3)
-    with torch.no_grad():
-        x = x.to(device)
-        output = model(x).detach().cpu()
-        output = (output * 0.5 + 0.5).clip(0, 1) * 255.0
-        output_video = output.permute(0, 2, 3, 1).numpy()
-
-    return output_video, audio_arr, out_fps, audio_fps
+        st.error(f"Error in inference step: {str(e)}")
+        return None
 
 def save_uploaded_file(uploaded_file):
     # Get the file extension from the uploaded file
