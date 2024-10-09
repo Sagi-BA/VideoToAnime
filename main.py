@@ -7,7 +7,7 @@ import streamlit as st
 import numpy as np
 import torch
 from encoded_video import EncodedVideo, write_video
-from torchvision.transforms.functional import center_crop, to_tensor
+from torchvision.transforms.functional import resize, center_crop
 import streamlit.components.v1 as components
 import os
 import tempfile
@@ -108,7 +108,44 @@ def short_side_scale(x: torch.Tensor, size: int, interpolation: str = "bilinear"
         new_w = int(math.floor((float(w) / h) * size))
     return torch.nn.functional.interpolate(x, size=(new_h, new_w), mode=interpolation, align_corners=False)
 
-def inference_step(vid, start_sec, duration, out_fps):
+import torch
+import numpy as np
+from torchvision.transforms.functional import resize, center_crop
+
+def process_video(video_arr, target_size=256):
+    # Ensure video_arr is a torch tensor
+    if not isinstance(video_arr, torch.Tensor):
+        video_arr = torch.from_numpy(video_arr).float()
+    
+    # Ensure the tensor has the shape (frames, height, width, channels)
+    if video_arr.dim() == 3:
+        video_arr = video_arr.unsqueeze(-1)  # Add channel dimension if it's missing
+    
+    # Move channels to the second dimension
+    video_arr = video_arr.permute(0, 3, 1, 2)
+    
+    # Ensure we have 3 channels (RGB)
+    if video_arr.shape[1] != 3:
+        if video_arr.shape[1] == 1:  # Grayscale
+            video_arr = video_arr.repeat(1, 3, 1, 1)
+        else:  # More than 3 channels
+            video_arr = video_arr[:, :3, :, :]
+    
+    # Resize the video frames
+    t, c, h, w = video_arr.shape
+    if h > target_size or w > target_size:
+        if h > w:
+            new_h, new_w = int(h * target_size / w), target_size
+        else:
+            new_h, new_w = target_size, int(w * target_size / h)
+        video_arr = resize(video_arr, (new_h, new_w))
+    
+    # Center crop to ensure square frames
+    video_arr = center_crop(video_arr, target_size)
+    
+    return video_arr
+
+def inference_step(vid, start_sec, duration, out_fps, target_size=256):
     global model
     if model is None:
         model = load_model()
@@ -118,24 +155,31 @@ def inference_step(vid, start_sec, duration, out_fps):
     
     try:
         clip = vid.get_clip(start_sec, start_sec + duration)
-        video_arr = torch.from_numpy(clip['video']).permute(3, 0, 1, 2)
+        video_arr = clip['video']
         audio_arr = np.expand_dims(clip['audio'], 0) if 'audio' in clip else None
         audio_fps = None if not vid._has_audio else vid._container.streams.audio[0].sample_rate
 
-        x = uniform_temporal_subsample(video_arr, duration * out_fps)
-        x = center_crop(short_side_scale(x, 512), 512)
-        x /= 255.0
-        x = x.permute(1, 0, 2, 3)
+        # Process and resize the video
+        x = uniform_temporal_subsample(torch.from_numpy(video_arr), duration * out_fps)
+        x = process_video(x, target_size)
+        x = x.float() / 255.0
+
         with torch.no_grad():
             x = x.to(device)
-            output = model(x).detach().cpu()
+            # Process each frame individually
+            output_frames = []
+            for frame in x:
+                frame = frame.unsqueeze(0)  # Add batch dimension
+                output = model(frame).detach().cpu()
+                output_frames.append(output)
+            output = torch.cat(output_frames, dim=0)
             output = (output * 0.5 + 0.5).clip(0, 1) * 255.0
-            output_video = output.permute(0, 2, 3, 1).numpy()
+            output_video = output.permute(0, 2, 3, 1).numpy().astype(np.uint8)
 
         return output_video, audio_arr, out_fps, audio_fps
     except Exception as e:
         st.error(f"Error in inference step: {str(e)}")
-        return None
+        raise  # Re-raise the exception for debugging
 
 def save_uploaded_file(uploaded_file):
     # Get the file extension from the uploaded file
@@ -153,7 +197,7 @@ def get_video_duration(file_path):
         duration = video.duration
     return int(duration)
 
-def predict_fn(video_path, start_sec, duration):
+def predict_fn(video_path, start_sec, duration, target_size=256):
     out_fps = 12
     
     # Generate a unique identifier for this processing job
@@ -171,24 +215,18 @@ def predict_fn(video_path, start_sec, duration):
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # for i in range(duration):
-        #     # Update progress bar and status text
-        #     progress = (i + 1) / duration
-        #     progress_bar.progress(progress)
-        #     status_text.text(f"🖼️ מעבד שלב {i + 1}/{duration}...")
-            
-        #     video, audio, fps, audio_fps = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
         for i in range(duration):
             # Update progress bar and status text
             progress = (i + 1) / duration
             progress_bar.progress(progress)
             status_text.text(f"🖼️ מעבד שלב {i + 1}/{duration}...")
-            result = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
+            
+            result = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps, target_size=target_size)
             if result is None:
                 st.error("Failed to process video segment")
                 return None
             video, audio, fps, audio_fps = result
-            gc.collect()
+            
             if i == 0:
                 video_all = video
                 audio_all = audio
