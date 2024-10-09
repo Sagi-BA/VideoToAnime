@@ -2,6 +2,7 @@ import asyncio
 import base64
 import gc
 import math
+import time
 import streamlit as st
 import numpy as np
 import torch
@@ -62,21 +63,18 @@ def load_html_file(file_name):
                 
 @st.cache_resource
 def load_model():
-    with st.spinner("טוען מודל AI... זה עלול לקחת דקה."):
+    with st.spinner("טוען מודל AI... זה עלול לקחת מספר שניות."):
         print("🧠 טוען מודל...")
-        # Temporarily redirect stdout and stderr
-        temp_stdout = io.StringIO()
-        temp_stderr = io.StringIO()
-        with contextlib.redirect_stdout(temp_stdout), contextlib.redirect_stderr(temp_stderr):
-            model = torch.hub.load(
-                "AK391/animegan2-pytorch:main",
-                "generator",
-                pretrained=True,
-                device=device,
-                progress=True,
-            )
-    pass
-    return model.to(device)    
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = torch.hub.load(
+            "AK391/animegan2-pytorch:main",
+            "generator",
+            pretrained=False,  # Set to False as we're loading from local file
+            device=device,
+        )
+        model.load_state_dict(torch.load("animegan2_model.pth", map_location=device))
+        model.eval()
+    return model.to(device)
 
 # Don't load the model immediately
 model = None
@@ -103,7 +101,11 @@ def short_side_scale(x: torch.Tensor, size: int, interpolation: str = "bilinear"
 def inference_step(vid, start_sec, duration, out_fps):
     global model
     try:
-        model = load_model()
+        if model is None:
+            model = load_model()
+        if model is None:
+            raise Exception("Failed to load model")
+
     except Exception as e:
         st.error(f"Failed to load model: {str(e)}")
         return
@@ -159,13 +161,23 @@ def predict_fn(video_path, start_sec, duration):
         progress_bar = st.progress(0)
         status_text = st.empty()
         
+        # for i in range(duration):
+        #     # Update progress bar and status text
+        #     progress = (i + 1) / duration
+        #     progress_bar.progress(progress)
+        #     status_text.text(f"🖼️ מעבד שלב {i + 1}/{duration}...")
+            
+        #     video, audio, fps, audio_fps = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
         for i in range(duration):
             # Update progress bar and status text
             progress = (i + 1) / duration
             progress_bar.progress(progress)
             status_text.text(f"🖼️ מעבד שלב {i + 1}/{duration}...")
-            
-            video, audio, fps, audio_fps = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
+            result = inference_step(vid=vid, start_sec=i + start_sec, duration=1, out_fps=out_fps)
+            if result is None:
+                st.error("Failed to process video segment")
+                return None
+            video, audio, fps, audio_fps = result
             gc.collect()
             if i == 0:
                 video_all = video

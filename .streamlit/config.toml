@@ -25,3 +25,12 @@ enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
+
+[runner]
+fastReruns = true
+
+[files]
+fileWatcherType = "auto"
+
+[file_watchers]
+extra_files = ["animegan2_model.pth"]
